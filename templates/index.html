@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Copiloto de Gestão e Insights | Parceiros</title>
+  <!-- Google Fonts & FontAwesome para ícones -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --primary: #ea1d2c;
+      /* Tom inspirado em ecossistemas de delivery */
+      --primary-hover: #c8101d;
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-main: #2d3748;
+      --text-muted: #718096;
+      --border: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 15px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    header h1 i {
+      color: var(--primary);
+    }
+
+    .badge-tag {
+      background: #fff5f5;
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      border: 1px solid var(--border);
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-main);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--text-main);
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: var(--primary);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 140px;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    /* Loading */
+    #loadingIndicator {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Results Section */
+    #resultSection {
+      display: none;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f7fafc;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .sentiment-badge {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .sentiment-badge.positivo {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .sentiment-badge.neutro {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    .sentiment-badge.critico {
+      background: #fed7d7;
+      color: #742a2a;
+    }
+
+    .section-subtitle {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 15px 0 10px 0;
+      color: var(--text-main);
+    }
+
+    .complaints-list,
+    .plan-list,
+    .replies-list {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+
+    .complaints-list li,
+    .plan-list li {
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .plan-list li::before {
+      content: "✓";
+      color: green;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .reply-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+    }
+
+    .reply-card p {
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-style: italic;
+    }
+
+    .reply-box {
+      background: #f8f9fa;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border-left: 3px solid var(--primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .copy-btn:hover {
+      background: #edf2f7;
+    }
+
+    /* History Table */
+    .history-section {
+      margin-top: 30px;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+
+    .history-table th,
+    .history-table td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-table th {
+      background: #f7fafc;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <header>
+      <h1><i class="fa-solid fa-utensils"></i> Copiloto de Gestão | Insights para Parceiros</h1>
+      <span class="badge-tag"><i class="fa-solid fa-robot"></i> Powered by Gemini AI</span>
+    </header>
+
+    <div class="grid-layout">
+      <!-- Coluna da Esquerda: Entrada de Dados -->
+      <div class="card">
+        <h2><i class="fa-solid fa-comments"></i> Entrada de Avaliações (Lote)</h2>
+        <div class="form-group">
+          <label for="restaurantName">Nome do Restaurante / Estabelecimento</label>
+          <input type="text" id="restaurantName" placeholder="Ex: Burger & Co. Delivery" value="Burger & Co.">
+        </div>
+
+        <div class="form-group">
+          <label for="reviewsText">Cole as avaliações recentes (uma por linha):</label>
+          <textarea id="reviewsText" placeholder="Ex:
+A batata chegou completamente murcha e fria.
+Demorou 1 hora e meia para entregar, absurdo!
+Achei a embalagem ótima e o lanche estava delicioso, mas faltou o molho.
+O entregador foi super educado, porém o refrigerante veio quente."></textarea>
+        </div>
+
+        <button class="btn" id="analyzeBtn" onclick="analyzeBatch()">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Insights e Plano Operacional
+        </button>
+
+        <div id="loadingIndicator">
+          <i class="fa-solid fa-spinner fa-spin"></i> A IA está analisando o lote de avaliações e estruturando o plano...
+        </div>
+      </div>
+
+      <!-- Coluna da Direita: Dashboard de Resultados -->
+      <div class="card">
+        <h2><i class="fa-solid fa-chart-line"></i> Dashboard Operacional</h2>
+
+        <div id="placeholderResult" style="text-align: center; color: var(--text-muted); padding: 40px 0;">
+          <i class="fa-solid fa-clipboard-list fa-3x" style="margin-bottom: 15px; opacity: 0.4;"></i>
+          <p>Preencha os dados à esquerda e clique em gerar para ver o diagnóstico e as ações recomendadas.</p>
+        </div>
+
+        <div id="resultSection">
+          <div class="result-header">
+            <div>
+              <strong id="resRestaurant">Restaurante</strong><br>
+              <span style="font-size: 0.85rem; color: var(--text-muted);" id="resTotal">0 avaliações analisadas</span>
+            </div>
+            <span id="resSentiment" class="sentiment-badge neutro">Neutro</span>
+          </div>
+
+          <div class="section-subtitle"><i class="fa-solid fa-triangle-exclamation"></i> Principais Reclamações (Agrupadas)</div>
+          <ul id="resComplaints" class="complaints-list"></ul>
+
+          <div class="section-subtitle"><i class="fa-solid fa-list-check"></i> Plano de Ação para a Cozinha</div>
+          <ul id="resPlan" class="plan-list"></ul>
+
+          <div class="section-subtitle"><i class="fa-solid fa-envelope-open-text"></i> Respostas Prontas para Clientes</div>
+          <div id="resReplies"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Histórico Salvo no Banco SQLite -->
+    <div class="card history-section">
+      <h2><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Análises Recentes (Banco de Dados)</h2>
+      <div style="overflow-x: auto;">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Restaurante</th>
+              <th>Total Avaliações</th>
+              <th>Sentimento Geral</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr>
+              <td colspan="4" style="text-align: center; color: var(--text-muted);">Carregando histórico...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Escapa texto vindo da IA/usuário antes de usar em innerHTML (evita XSS)
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function sentimentClass(text) {
+      const s = String(text || '').toLowerCase();
+      if (s.includes('positiv')) return 'positivo';
+      if (s.includes('crític') || s.includes('critic') || s.includes('negativ')) return 'critico';
+      return 'neutro';
+    }
+
+    // Carrega o histórico ao abrir a página
+    window.addEventListener('DOMContentLoaded', loadHistory);
+
+    async function analyzeBatch() {
+      const restaurantName = document.getElementById('restaurantName').value.trim();
+      const reviewsText = document.getElementById('reviewsText').value.trim();
+      const btn = document.getElementById('analyzeBtn');
+      const loading = document.getElementById('loadingIndicator');
+      const placeholder = document.getElementById('placeholderResult');
+      const resultSection = document.getElementById('resultSection');
+
+      if (!reviewsText) {
+        alert('Por favor, insira pelo menos uma avaliação.');
+        return;
+      }
+
+      btn.disabled = true;
+      loading.style.display = 'block';
+      placeholder.style.display = 'none';
+      resultSection.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/analyze-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ restaurant_name: restaurantName, reviews_text: reviewsText })
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          data = { success: false, error: 'Resposta inválida do servidor (HTTP ' + response.status + ').' };
+        }
+
+        if (data.success) {
+          renderResults(data.analysis);
+          loadHistory(); // Atualiza a tabela de histórico abaixo
+        } else {
+          alert('Erro: ' + (data.error || 'Erro desconhecido'));
+          placeholder.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Erro de conexão:', error);
+        alert('Não foi possível conectar com o servidor.');
+        placeholder.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        loading.style.display = 'none';
+      }
+    }
+
+    function renderResults(analysis) {
+      document.getElementById('placeholderResult').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'block';
+
+      document.getElementById('resRestaurant').innerText = analysis.restaurant_name;
+      document.getElementById('resTotal').innerText = `${analysis.total_reviews} avaliações analisadas`;
+
+      const badge = document.getElementById('resSentiment');
+      badge.innerText = analysis.overall_sentiment;
+      badge.className = 'sentiment-badge ' + sentimentClass(analysis.overall_sentiment);
+
+      // Renderizar Gargalos / Reclamações
+      const complaintsUl = document.getElementById('resComplaints');
+      complaintsUl.innerHTML = '';
+      analysis.top_complaints.forEach(item => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span><i class="fa-solid fa-circle-exclamation" style="color: #e53e3e; margin-right: 6px;"></i> ${esc(item.issue)} (${esc(item.count ?? 1)}x)</span> <span style="font-size: 0.8rem; background: #edf2f7; padding: 2px 6px; border-radius: 4px;">Impacto: ${esc(item.impact)}</span>`;
+        complaintsUl.appendChild(li);
+      });
+
+      // Renderizar Plano Operacional
+      const planUl = document.getElementById('resPlan');
+      planUl.innerHTML = '';
+      analysis.operational_plan.forEach(action => {
+        const li = document.createElement('li');
+        li.innerText = action;
+        planUl.appendChild(li);
+      });
+
+      // Renderizar Respostas Prontas
+      const repliesDiv = document.getElementById('resReplies');
+      repliesDiv.innerHTML = '';
+      analysis.customer_replies.forEach((rep, index) => {
+        const div = document.createElement('div');
+        div.className = 'reply-card';
+        div.innerHTML = `
+                    <p>“${esc(rep.customer_complaint)}”</p>
+                    <div class="reply-box">
+                        <span id="replyText_${index}">${esc(rep.suggested_reply)}</span>
+                        <button class="copy-btn" onclick="copyReply('replyText_${index}', this)"><i class="fa-regular fa-copy"></i> Copiar</button>
+                    </div>
+                `;
+        repliesDiv.appendChild(div);
+      });
+    }
+
+    async function loadHistory() {
+      try {
+        const response = await fetch('/api/history');
+        const data = await response.json();
+
+        if (data.success) {
+          const tbody = document.getElementById('historyTableBody');
+          tbody.innerHTML = '';
+
+          if (data.history.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Nenhuma análise registrada ainda.</td></tr>`;
+            return;
+          }
+
+          data.history.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                            <td>${esc(item.created_at)}</td>
+                            <td><strong>${esc(item.restaurant_name)}</strong></td>
+                            <td>${esc(item.total_reviews)}</td>
+                            <td><span class="sentiment-badge ${sentimentClass(item.overall_sentiment)}">${esc(item.overall_sentiment)}</span></td>
+                        `;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+      }
+    }
+
+    function copyReply(elementId, btn) {
+      const text = document.getElementById(elementId).innerText;
+      if (!navigator.clipboard) { alert('Cópia não suportada neste navegador/contexto.'); return; }
+      navigator.clipboard.writeText(text).then(() => {
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-check"></i> Copiado!`;
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+
+</html>
