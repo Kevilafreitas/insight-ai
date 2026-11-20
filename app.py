@@ -36,8 +36,8 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 
-# Modelo padrão corrigido para gemini-2.5-flash (compatível com a API pública)
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# Modelo padrão: gemini-3.8-flash
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 MAX_RETRIES = 3
 MAX_REVIEWS_CHARS = 20000          # evita lotes gigantes
 SENTIMENTOS_VALIDOS = {"Positivo", "Neutro", "Crítico"}

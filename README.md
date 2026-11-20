@@ -1,6 +1,6 @@
 # InsightAI — Copiloto de Gestão | Insights para Parceiros
 
-O **InsightAI** é uma aplicação web desenvolvida em Python/Flask integrada ao modelo Gemini 2.5 Flash. A solução foi projetada para processar lotes de dados textuais não estruturados (como avaliações de clientes de restaurantes parceiros, feedbacks de entrega e chamados de suporte) e transformá-los em dados estruturados contendo resumo, análise de sentimento, principais gargalos operacionais agrupados, plano de ação recomendado e respostas profissionais prontas para clientes, exibidos em dashboards interativos e persistidos em SQLite.
+O **InsightAI** é uma aplicação web desenvolvida em Python/Flask integrada ao modelo Gemini 3.8 Flash. A solução foi projetada para processar lotes de dados textuais não estruturados (como avaliações de clientes de restaurantes parceiros, feedbacks de entrega e chamados de suporte) e transformá-los em dados estruturados contendo resumo, análise de sentimento, principais gargalos operacionais agrupados, plano de ação recomendado e respostas profissionais prontas para clientes, exibidos em dashboards interativos e persistidos em SQLite.
 
 🔗 **Aplicação Online:** [https://insight-ai-euwm.onrender.com](https://insight-ai-euwm.onrender.com)
 
@@ -12,7 +12,7 @@ Em operações digitais de alto volume — como e-commerces, plataformas de deli
 
 O **InsightAI** automatiza esse fluxo em três etapas:
 - **Entrada:** Envio individual ou em lote de avaliações e feedbacks de clientes (uma por linha).
-- **Processamento:** Extração de contexto, classificação de sentimento e geração de planos de ação práticos utilizando o Google Gemini 2.5 Flash com saída rigorosamente estruturada em JSON via Pydantic schema.
+- **Processamento:** Extração de contexto, classificação de sentimento e geração de planos de ação práticos utilizando o Google Gemini 3.8 Flash com saída rigorosamente estruturada em JSON via Pydantic schema.
 - **Saída:** Exibição imediata em dashboard operacional, histórico persistido em banco SQLite e API REST para integração.
 
 ---
@@ -21,7 +21,7 @@ O **InsightAI** automatiza esse fluxo em três etapas:
 
 - **Linguagem:** Python 3.10+
 - **Backend & API:** Flask, SQLAlchemy (SQLite), Gunicorn
-- **Inteligência Artificial:** Google GenAI SDK (`google-genai`), Gemini 2.5 Flash
+- **Inteligência Artificial:** Google GenAI SDK (`google-genai`), Gemini 3.8 Flash
 - **Validação de Dados:** Pydantic
 - **Frontend:** HTML5, CSS3, JavaScript (Dashboard responsivo)
 - **Gerenciamento de Variáveis:** python-dotenv
@@ -35,7 +35,7 @@ O **InsightAI** automatiza esse fluxo em três etapas:
 ```text
 [ Interface Web / Cliente ] --( POST /api/analyze-batch )--> [ Backend Flask (InsightAI) ]
                                                                        |
-                                                           [ Gemini 2.5 Flash API ]
+                                                           [ Gemini 3.8 Flash API ]
                                                                        |
 [ Dashboards & Histórico ] <-----( JSON Estruturado )------------------+
 ```
@@ -93,7 +93,7 @@ copy .env.example .env    # Windows
 Abra o `.env` e configure sua chave da API do Google Gemini obtida no [Google AI Studio](https://aistudio.google.com/):
 ```ini
 GEMINI_API_KEY=AIzaSy...
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 FLASK_DEBUG=1
 ```
 
