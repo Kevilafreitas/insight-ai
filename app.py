@@ -39,8 +39,18 @@ client = genai.Client(
     http_options=types.HttpOptions(timeout=20000)
 )
 
-# Modelo padrão: gemini-3.8-flash
+# Modelo padrão e lista de fallback para alta demanda (503 / 429)
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+_FALLBACK_CANDIDATES = [
+    MODEL_NAME,
+    os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.8-flash-lite"),
+    "gemini-3.5-flash",
+]
+MODELS_TO_TRY = []
+for m in _FALLBACK_CANDIDATES:
+    if m and m not in MODELS_TO_TRY:
+        MODELS_TO_TRY.append(m)
+
 MAX_RETRIES = 2
 MAX_REVIEWS_CHARS = 20000          # evita lotes gigantes
 SENTIMENTOS_VALIDOS = {"Positivo", "Neutro", "Crítico"}
@@ -76,50 +86,61 @@ def normaliza_sentimento(valor):
 
 
 def chama_gemini(prompt, system_instruction=None):
-    """Chama o Gemini desativando Thinking e AFC, com timeout de 20s e retry curto."""
+    """Chama o Gemini com fallback automático de modelos em caso de 503 (alta demanda) ou 429."""
     ultimo_erro = None
-    for tentativa in range(MAX_RETRIES):
-        inicio = time.time()
-        try:
-            config_kwargs = {
-                "response_mime_type": "application/json",
-                "response_schema": AnalysisSchema,
-                "thinking_config": types.ThinkingConfig(thinking_budget=0),
-                "automatic_function_calling": types.AutomaticFunctionCallingConfig(disable=True),
-                "http_options": types.HttpOptions(timeout=20000),
-            }
-            if system_instruction:
-                config_kwargs["system_instruction"] = system_instruction
 
-            resp = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=prompt,
-                config=types.GenerateContentConfig(**config_kwargs),
-            )
-            duracao = time.time() - inicio
-            app.logger.info(f"Chamada generate_content ({MODEL_NAME}) concluída em {duracao:.2f}s.")
-            return resp
-        except Exception as e:
-            duracao = time.time() - inicio
-            ultimo_erro = e
-            msg = str(e)
-            code = getattr(e, "code", None)
-            app.logger.warning(
-                f"Chamada generate_content (tentativa {tentativa + 1}/{MAX_RETRIES}) falhou após {duracao:.2f}s: {e}"
-            )
+    config_kwargs = {
+        "response_mime_type": "application/json",
+        "response_schema": AnalysisSchema,
+        "thinking_config": types.ThinkingConfig(thinking_budget=0),
+        "automatic_function_calling": types.AutomaticFunctionCallingConfig(disable=True),
+        "http_options": types.HttpOptions(timeout=20000),
+    }
+    if system_instruction:
+        config_kwargs["system_instruction"] = system_instruction
 
-            # Não retenta para erros de cliente (400, 404, 429) ou última tentativa
-            nao_retentar = code in (400, 404, 429) or any(
-                c in msg for c in ("400", "404", "429", "NOT_FOUND", "INVALID_ARGUMENT", "RESOURCE_EXHAUSTED")
-            )
-            if nao_retentar or tentativa >= MAX_RETRIES - 1:
+    for idx_modelo, modelo in enumerate(MODELS_TO_TRY):
+        for tentativa in range(MAX_RETRIES):
+            inicio = time.time()
+            try:
+                resp = client.models.generate_content(
+                    model=modelo,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(**config_kwargs),
+                )
+                duracao = time.time() - inicio
+                app.logger.info(f"Chamada generate_content ({modelo}) concluída com sucesso em {duracao:.2f}s.")
+                return resp
+            except Exception as e:
+                duracao = time.time() - inicio
+                ultimo_erro = e
+                msg = str(e)
+                code = getattr(e, "code", None)
+                app.logger.warning(
+                    f"Chamada generate_content modelo={modelo} (tentativa {tentativa + 1}/{MAX_RETRIES}) falhou após {duracao:.2f}s: {e}"
+                )
+
+                # Verifica se é erro de sobrecarga/alta demanda do Google
+                eh_alta_demanda = code in (503, 429) or any(
+                    term in msg for term in ("503", "429", "UNAVAILABLE", "high demand", "RESOURCE_EXHAUSTED", "overloaded")
+                )
+
+                if eh_alta_demanda:
+                    # Se houver outro modelo na lista de fallback, tenta o próximo modelo imediatamente
+                    if idx_modelo < len(MODELS_TO_TRY) - 1:
+                        proximo = MODELS_TO_TRY[idx_modelo + 1]
+                        app.logger.warning(f"Modelo {modelo} com alta demanda ({msg}). Tentando modelo de fallback: {proximo}...")
+                        break  # Sai do loop de tentativas do modelo atual e vai para o próximo modelo
+
+                    # Se já for o último modelo, faz no máximo 1 retry curto
+                    if tentativa < MAX_RETRIES - 1:
+                        time.sleep(1)
+                        continue
+                    break
+
+                # Para erros de validação de cliente (400, 404, etc.), não tenta fallback
                 break
 
-            # No máximo 1 tentativa extra para erro 503 com pausa curta de 1 segundo
-            if code == 503 or "503" in msg or "UNAVAILABLE" in msg:
-                time.sleep(1)
-                continue
-            break
     raise ultimo_erro
 
 
@@ -275,6 +296,13 @@ Se o lote for 100% positivo ou não contiver reclamações identificáveis, devo
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Erro detalhado no servidor: {e}", exc_info=True)
+        msg = str(e)
+        code = getattr(e, "code", None)
+        if code in (503, 429) or any(term in msg for term in ("503", "429", "UNAVAILABLE", "high demand", "RESOURCE_EXHAUSTED", "overloaded")):
+            return jsonify({
+                "success": False,
+                "error": "Os servidores de IA do Google estão com alta demanda no momento. Tente novamente em alguns segundos."
+            }), 503
         return jsonify({"success": False, "error": "Falha ao processar a análise. Tente novamente em instantes."}), 500
 
 
