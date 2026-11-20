@@ -34,11 +34,14 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     raise ValueError("A chave GEMINI_API_KEY não foi encontrada no arquivo .env!")
 
-client = genai.Client(api_key=api_key)
+client = genai.Client(
+    api_key=api_key,
+    http_options=types.HttpOptions(timeout=20000)
+)
 
 # Modelo padrão: gemini-3.8-flash
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-MAX_RETRIES = 3
+MAX_RETRIES = 2
 MAX_REVIEWS_CHARS = 20000          # evita lotes gigantes
 SENTIMENTOS_VALIDOS = {"Positivo", "Neutro", "Crítico"}
 
@@ -73,30 +76,48 @@ def normaliza_sentimento(valor):
 
 
 def chama_gemini(prompt, system_instruction=None):
-    """Chama o Gemini com retry para erros temporários (503/429/sobrecarga) e schema estruturado."""
+    """Chama o Gemini desativando Thinking e AFC, com timeout de 20s e retry curto."""
     ultimo_erro = None
     for tentativa in range(MAX_RETRIES):
+        inicio = time.time()
         try:
             config_kwargs = {
                 "response_mime_type": "application/json",
                 "response_schema": AnalysisSchema,
+                "thinking_config": types.ThinkingConfig(thinking_budget=0),
+                "automatic_function_calling": types.AutomaticFunctionCallingConfig(disable=True),
+                "http_options": types.HttpOptions(timeout=20000),
             }
             if system_instruction:
                 config_kwargs["system_instruction"] = system_instruction
 
-            return client.models.generate_content(
+            resp = client.models.generate_content(
                 model=MODEL_NAME,
                 contents=prompt,
                 config=types.GenerateContentConfig(**config_kwargs),
             )
+            duracao = time.time() - inicio
+            app.logger.info(f"Chamada generate_content ({MODEL_NAME}) concluída em {duracao:.2f}s.")
+            return resp
         except Exception as e:
+            duracao = time.time() - inicio
             ultimo_erro = e
             msg = str(e)
             code = getattr(e, "code", None)
-            temporario = code in (429, 503) or any(c in msg for c in ("503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"))
-            if temporario and tentativa < MAX_RETRIES - 1:
-                app.logger.warning(f"Tentativa {tentativa + 1} falhou com erro temporário ({msg}). Aguardando retry...")
-                time.sleep(2 * (tentativa + 1))   # 2s, 4s...
+            app.logger.warning(
+                f"Chamada generate_content (tentativa {tentativa + 1}/{MAX_RETRIES}) falhou após {duracao:.2f}s: {e}"
+            )
+
+            # Não retenta para erros de cliente (400, 404, 429) ou última tentativa
+            nao_retentar = code in (400, 404, 429) or any(
+                c in msg for c in ("400", "404", "429", "NOT_FOUND", "INVALID_ARGUMENT", "RESOURCE_EXHAUSTED")
+            )
+            if nao_retentar or tentativa >= MAX_RETRIES - 1:
+                break
+
+            # No máximo 1 tentativa extra para erro 503 com pausa curta de 1 segundo
+            if code == 503 or "503" in msg or "UNAVAILABLE" in msg:
+                time.sleep(1)
                 continue
             break
     raise ultimo_erro
