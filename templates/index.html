@@ -237,6 +237,18 @@
       margin-right: 8px;
     }
 
+    .empty-state-item {
+      padding: 12px;
+      background: #f8f9fa;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      font-style: italic;
+      text-align: center;
+      display: block !important;
+    }
+
     .reply-card {
       background: #fff;
       border: 1px solid var(--border);
@@ -442,7 +454,7 @@ O entregador foi super educado, porém o refrigerante veio quente."></textarea>
           data = { success: false, error: 'Resposta inválida do servidor (HTTP ' + response.status + ').' };
         }
 
-        if (data.success) {
+        if (data.success && data.analysis) {
           renderResults(data.analysis);
           loadHistory(); // Atualiza a tabela de histórico abaixo
         } else {
@@ -463,55 +475,85 @@ O entregador foi super educado, porém o refrigerante veio quente."></textarea>
       document.getElementById('placeholderResult').style.display = 'none';
       document.getElementById('resultSection').style.display = 'block';
 
-      document.getElementById('resRestaurant').innerText = analysis.restaurant_name;
-      document.getElementById('resTotal').innerText = `${analysis.total_reviews} avaliações analisadas`;
+      document.getElementById('resRestaurant').innerText = analysis.restaurant_name || 'Restaurante';
+      document.getElementById('resTotal').innerText = `${analysis.total_reviews || 0} avaliações analisadas`;
 
       const badge = document.getElementById('resSentiment');
-      badge.innerText = analysis.overall_sentiment;
+      badge.innerText = analysis.overall_sentiment || 'Neutro';
       badge.className = 'sentiment-badge ' + sentimentClass(analysis.overall_sentiment);
 
       // Renderizar Gargalos / Reclamações
       const complaintsUl = document.getElementById('resComplaints');
       complaintsUl.innerHTML = '';
-      analysis.top_complaints.forEach(item => {
+      const complaints = Array.isArray(analysis.top_complaints) ? analysis.top_complaints : [];
+      if (complaints.length === 0) {
         const li = document.createElement('li');
-        li.innerHTML = `<span><i class="fa-solid fa-circle-exclamation" style="color: #e53e3e; margin-right: 6px;"></i> ${esc(item.issue)} (${esc(item.count ?? 1)}x)</span> <span style="font-size: 0.8rem; background: #edf2f7; padding: 2px 6px; border-radius: 4px;">Impacto: ${esc(item.impact)}</span>`;
+        li.className = 'empty-state-item';
+        li.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #38a169; margin-right: 6px;"></i> Nenhuma reclamação recorrente identificada neste lote.';
         complaintsUl.appendChild(li);
-      });
+      } else {
+        complaints.forEach(item => {
+          const li = document.createElement('li');
+          const issue = typeof item === 'object' ? (item.issue || 'Problema identificado') : String(item);
+          const count = typeof item === 'object' && item.count ? item.count : 1;
+          const impact = typeof item === 'object' && item.impact ? item.impact : 'Médio';
+          li.innerHTML = `<span><i class="fa-solid fa-circle-exclamation" style="color: #e53e3e; margin-right: 6px;"></i> ${esc(issue)} (${esc(count)}x)</span> <span style="font-size: 0.8rem; background: #edf2f7; padding: 2px 6px; border-radius: 4px;">Impacto: ${esc(impact)}</span>`;
+          complaintsUl.appendChild(li);
+        });
+      }
 
       // Renderizar Plano Operacional
       const planUl = document.getElementById('resPlan');
       planUl.innerHTML = '';
-      analysis.operational_plan.forEach(action => {
+      const plan = Array.isArray(analysis.operational_plan) ? analysis.operational_plan : [];
+      if (plan.length === 0) {
         const li = document.createElement('li');
-        li.innerText = action;
+        li.className = 'empty-state-item';
+        li.innerHTML = '<i class="fa-solid fa-thumbs-up" style="color: #3182ce; margin-right: 6px;"></i> Manter os padrões atuais de operação e atendimento.';
         planUl.appendChild(li);
-      });
+      } else {
+        plan.forEach(action => {
+          const li = document.createElement('li');
+          const actionText = typeof action === 'object' ? (action.action || action.descricao || JSON.stringify(action)) : String(action);
+          li.innerText = actionText;
+          planUl.appendChild(li);
+        });
+      }
 
       // Renderizar Respostas Prontas
       const repliesDiv = document.getElementById('resReplies');
       repliesDiv.innerHTML = '';
-      analysis.customer_replies.forEach((rep, index) => {
-        const div = document.createElement('div');
-        div.className = 'reply-card';
-        div.innerHTML = `
-                    <p>“${esc(rep.customer_complaint)}”</p>
-                    <div class="reply-box">
-                        <span id="replyText_${index}">${esc(rep.suggested_reply)}</span>
-                        <button class="copy-btn" onclick="copyReply('replyText_${index}', this)"><i class="fa-regular fa-copy"></i> Copiar</button>
-                    </div>
-                `;
-        repliesDiv.appendChild(div);
-      });
+      const replies = Array.isArray(analysis.customer_replies) ? analysis.customer_replies : [];
+      if (replies.length === 0) {
+        repliesDiv.innerHTML = '<div class="empty-state-item"><i class="fa-solid fa-message" style="margin-right: 6px;"></i> Nenhuma resposta individual sugerida para este lote.</div>';
+      } else {
+        replies.forEach((rep, index) => {
+          const div = document.createElement('div');
+          div.className = 'reply-card';
+          const complaintText = typeof rep === 'object' ? (rep.customer_complaint || 'Avaliação do cliente') : 'Avaliação do cliente';
+          const replyText = typeof rep === 'object' ? (rep.suggested_reply || '') : String(rep);
+          div.innerHTML = `
+            <p>“${esc(complaintText)}”</p>
+            <div class="reply-box">
+              <span id="replyText_${index}">${esc(replyText)}</span>
+              <button class="copy-btn" onclick="copyReply('replyText_${index}', this)"><i class="fa-regular fa-copy"></i> Copiar</button>
+            </div>
+          `;
+          repliesDiv.appendChild(div);
+        });
+      }
     }
 
     async function loadHistory() {
+      const tbody = document.getElementById('historyTableBody');
       try {
         const response = await fetch('/api/history');
+        if (!response.ok) {
+          throw new Error('Falha HTTP ' + response.status);
+        }
         const data = await response.json();
 
-        if (data.success) {
-          const tbody = document.getElementById('historyTableBody');
+        if (data.success && Array.isArray(data.history)) {
           tbody.innerHTML = '';
 
           if (data.history.length === 0) {
@@ -522,29 +564,62 @@ O entregador foi super educado, porém o refrigerante veio quente."></textarea>
           data.history.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                            <td>${esc(item.created_at)}</td>
-                            <td><strong>${esc(item.restaurant_name)}</strong></td>
-                            <td>${esc(item.total_reviews)}</td>
-                            <td><span class="sentiment-badge ${sentimentClass(item.overall_sentiment)}">${esc(item.overall_sentiment)}</span></td>
-                        `;
+              <td>${esc(item.created_at)}</td>
+              <td><strong>${esc(item.restaurant_name)}</strong></td>
+              <td>${esc(item.total_reviews)}</td>
+              <td><span class="sentiment-badge ${sentimentClass(item.overall_sentiment)}">${esc(item.overall_sentiment)}</span></td>
+            `;
             tbody.appendChild(tr);
           });
+        } else {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #e53e3e;">Erro ao recuperar histórico de análises.</td></tr>`;
         }
       } catch (error) {
         console.error('Erro ao carregar histórico:', error);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #e53e3e;">Não foi possível carregar o histórico.</td></tr>`;
       }
     }
 
     function copyReply(elementId, btn) {
       const text = document.getElementById(elementId).innerText;
-      if (!navigator.clipboard) { alert('Cópia não suportada neste navegador/contexto.'); return; }
-      navigator.clipboard.writeText(text).then(() => {
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = `<i class="fa-solid fa-check"></i> Copiado!`;
-        setTimeout(() => {
-          btn.innerHTML = originalHTML;
-        }, 2000);
-      });
+      const originalHTML = btn.innerHTML;
+
+      // Fallback para navegadores sem Clipboard API moderna ou sem HTTPS
+      function fallbackCopy() {
+        try {
+          const tempArea = document.createElement('textarea');
+          tempArea.value = text;
+          tempArea.style.position = 'fixed';
+          tempArea.style.opacity = '0';
+          document.body.appendChild(tempArea);
+          tempArea.select();
+          const success = document.execCommand('copy');
+          document.body.removeChild(tempArea);
+          if (success) {
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> Copiado!`;
+            setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+          } else {
+            alert('Não foi possível copiar o texto automaticamente.');
+          }
+        } catch (e) {
+          alert('Cópia não suportada neste ambiente.');
+        }
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => {
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> Copiado!`;
+            setTimeout(() => {
+              btn.innerHTML = originalHTML;
+            }, 2000);
+          })
+          .catch(() => {
+            fallbackCopy();
+          });
+      } else {
+        fallbackCopy();
+      }
     }
   </script>
 </body>
